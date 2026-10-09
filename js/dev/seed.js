@@ -5,7 +5,7 @@
  * without touching real data.
  */
 
-import { db, currentUserId } from "../data/db.js";
+import { db } from "../data/db.js";
 import { state } from "../state.js";
 import { todayKey, addDays, minutesToTime, timeToMinutes, weekdayIndex, toTimeString } from "../utils/time.js";
 
@@ -34,12 +34,11 @@ const pick = (rand, list) => list[Math.floor(rand() * list.length)];
 
 export async function loadDemoData({ days = 120 } = {}) {
   const store = db();
-  const userId = currentUserId();
   const rand = rng(20261008);
   const today = todayKey();
   const nowMin = timeToMinutes(toTimeString());
   const ops = [];
-  const base = () => ({ userId, demo: true, createdAt: store.stamp(), updatedAt: store.stamp() });
+  const base = () => ({ demo: true, createdAt: store.stamp(), updatedAt: store.stamp() });
 
   // Reuse subjects with the same name so demo data never duplicates them.
   const subjects = SUBJECTS.map((s) => {
@@ -71,7 +70,7 @@ export async function loadDemoData({ days = 120 } = {}) {
   ];
   for (const g of goalDefaults) {
     const exists = state.data.goals.some((x) => x.type === g.type && (x.subjectId || null) === g.subjectId);
-    if (!exists) ops.push({ type: "set", collection: "goals", id: `${userId}__${g.type}__${g.subjectId || "all"}`, data: { ...base(), ...g } });
+    if (!exists) ops.push({ type: "set", collection: "goals", id: `${g.type}__${g.subjectId || "all"}`, data: { ...base(), ...g } });
   }
 
   // History: learn on ~78% of days, more on weekday evenings.

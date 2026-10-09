@@ -82,7 +82,7 @@ async function establish({ mode, username, apiKey }) {
 function touchProfile(user) {
   const store = db();
   store
-    .set("users", user.id, { userId: user.id, username: user.username, lastSignInAt: store.stamp(), updatedAt: store.stamp() }, { merge: true })
+    .set("users", user.id, { username: user.username, lastSignInAt: store.stamp(), updatedAt: store.stamp() }, { merge: true })
     .catch((error) => console.warn("Could not update profile", error));
 }
 

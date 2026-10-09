@@ -47,7 +47,7 @@ export function createLocalBackend({ userId }) {
     stamp: () => STAMP,
     newId: () => uid("l"),
 
-    subscribe(name, uid_, onData) {
+    subscribe(name, onData) {
       if (!subscribers.has(name)) subscribers.set(name, new Set());
       subscribers.get(name).add(onData);
       queueMicrotask(() => onData(docsOf(name).map((d) => ({ ...d })), { fromCache: false, pendingWrites: false }));

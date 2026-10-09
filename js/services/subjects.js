@@ -1,6 +1,6 @@
 /* Subject service: controlled vocabulary of things the user learns. */
 
-import { db, currentUserId } from "../data/db.js";
+import { db } from "../data/db.js";
 import { state } from "../state.js";
 import { assertValid } from "../utils/errors.js";
 
@@ -45,7 +45,6 @@ export async function createSubject(input) {
   const id = store.newId(COLLECTION);
   await store.set(COLLECTION, id, {
     ...clean,
-    userId: currentUserId(),
     archived: false,
     createdAt: store.stamp(),
     updatedAt: store.stamp(),

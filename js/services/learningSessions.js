@@ -3,7 +3,7 @@
  * Timer and manual sessions share one shape; only `source` differs.
  */
 
-import { db, currentUserId } from "../data/db.js";
+import { db } from "../data/db.js";
 import { state } from "../state.js";
 import { ValidationError, assertValid } from "../utils/errors.js";
 import { isDateKey, isTimeString, timeToMinutes, spanMinutes, todayKey, toDateKey, toTimeString } from "../utils/time.js";
@@ -75,7 +75,6 @@ export async function createManualSession(input, options) {
   const id = store.newId(COLLECTION);
   await store.set(COLLECTION, id, {
     ...clean,
-    userId: currentUserId(),
     source: "manual",
     createdAt: store.stamp(),
     updatedAt: store.stamp(),
@@ -113,7 +112,7 @@ export async function deleteSession(id) {
 export async function restoreSession(session) {
   const store = db();
   const { id, createdAt, updatedAt, ...data } = session;
-  await store.set(COLLECTION, id, { ...data, userId: currentUserId(), createdAt: store.stamp(), updatedAt: store.stamp() });
+  await store.set(COLLECTION, id, { ...data, createdAt: store.stamp(), updatedAt: store.stamp() });
 }
 
 /**
@@ -130,7 +129,6 @@ export async function saveTimerSession(timer, endedAt = Date.now()) {
   const start = new Date(timer.startedAt);
   const id = store.newId(COLLECTION);
   await store.set(COLLECTION, id, {
-    userId: currentUserId(),
     date: toDateKey(start),
     startTime: toTimeString(start),
     endTime: toTimeString(new Date(endedAt)),

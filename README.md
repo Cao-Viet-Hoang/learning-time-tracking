@@ -76,24 +76,29 @@ The layers are: **views → domain (read-only calculations) / services (validate
 
 ## Data model (Firestore)
 
-All documents carry `userId`. Every query is `where("userId", "==", userId)`.
+Each user's data is nested under their own `users/{userId}` document, so
+isolation comes from the document path, not a filtered query.
 
 | Collection | Fields |
 |---|---|
 | `users/{userId}` | `username, lastSignInAt` |
-| `subjects` | `name, description, icon, color, archived, createdAt, updatedAt` |
-| `goals` | `type (daily/monthly/yearly), subjectId (null = overall), targetMinutes` |
-| `plannedSessions` | `date, startTime, endTime, subjectId, topic, note, status (planned/completed/skipped)` |
-| `learningSessions` | `date, startTime, endTime, durationMinutes, subjectId, topic, note, source (timer/manual), plannedSessionId` |
+| `users/{userId}/subjects` | `name, description, icon, color, archived, createdAt, updatedAt` |
+| `users/{userId}/goals` | `type (daily/monthly/yearly), subjectId (null = overall), targetMinutes` |
+| `users/{userId}/plannedSessions` | `date, startTime, endTime, subjectId, topic, note, status (planned/completed/skipped)` |
+| `users/{userId}/learningSessions` | `date, startTime, endTime, durationMinutes, subjectId, topic, note, source (timer/manual), plannedSessionId` |
+
+`userId` is bound once when the Firestore backend connects (see
+`js/data/firestoreBackend.js`); services just pass bare collection names
+("subjects", "goals", ...) and the backend resolves the nested path.
 
 Display states such as *missed*, *partial* and *in progress* are derived at render time, not stored.
 
 ## Security note
 
-The current sign-in (username + API key) is not real authentication. A Firebase web API key is public by design, so Firestore rules can't tell users apart. `firestore.rules` restricts collections and validates document shape. For real per-user isolation:
+The current sign-in (username + API key) is not real authentication. A Firebase web API key is public by design, so Firestore rules can't tell *who* is writing. Isolation between users is structural (separate `users/{userId}` subtrees), not enforced — anyone with the API key could technically read/write under any userId. `firestore.rules` only validates document shape to block malformed writes. This is an accepted tradeoff for a small app with a few known users. For real per-user enforcement:
 
 1. Enable an Authentication provider in the Firebase Console.
 2. In `js/auth.js`, call the Firebase Auth SDK and use `user.uid` as the `userId`.
-3. Change `validUser()` in `firestore.rules` to check `request.auth.uid`.
+3. Add a check in `firestore.rules` that `request.auth.uid == userId` on the `users/{userId}` match.
 
 Services and views don't need to change.
