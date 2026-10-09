@@ -1162,6 +1162,7 @@
 .subject-row__stat {
   display: flex;
   flex-direction: column;
+  align-self: start;
   gap: 2px;
   font-size: var(--text-sm);
 }
@@ -1182,17 +1183,19 @@
   color: var(--text-muted);
 }
 
-.subject-row__total {
+.subject-row__value {
   font-size: var(--text-md);
   font-weight: var(--weight-semibold);
 }
 
+/* Mirrors .subject-row__goal + .progress--xs so both stat columns line up. */
 .subject-row__share {
   display: block;
   height: 3px;
-  margin-top: 3px;
+  margin-top: 2px;
   background: var(--surface-sunken);
-  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px var(--border);
+  border-radius: var(--radius-full);
   overflow: hidden;
 }
 
@@ -1555,27 +1558,32 @@
 .heatmap {
   --cell: 11px;
   --gap: 3px;
+  --rows-w: 30px; /* day labels (24px) + body gap (6px) */
 }
 
 .heatmap__scroll {
+  container-type: inline-size;
   overflow-x: auto;
+  width: 100%;
   padding-bottom: 4px;
   direction: rtl; /* keep most recent weeks visible on narrow screens */
 }
 
 .heatmap__inner {
+  /* Cells grow to fill the card; below 11px the grid scrolls instead. */
+  --cell: max(11px, calc((100cqi - var(--rows-w) - (var(--weeks) - 1) * var(--gap) - 6px) / var(--weeks)));
   direction: ltr;
+  padding: 0 3px; /* room for the today / selected outline at the edges */
   display: inline-flex;
   flex-direction: column;
   gap: 4px;
-  min-width: 100%;
 }
 
 .heatmap__months {
   display: grid;
   grid-template-columns: repeat(var(--weeks), var(--cell));
   column-gap: var(--gap);
-  margin-left: 30px;
+  margin-left: var(--rows-w);
   font-size: var(--text-2xs);
   color: var(--text-muted);
   height: 14px;
@@ -1614,7 +1622,7 @@
 .hm-cell {
   width: var(--cell);
   height: var(--cell);
-  border-radius: 2.5px;
+  border-radius: clamp(2.5px, calc(var(--cell) * 0.2), 4px);
   background: var(--seq-0);
   transition: transform var(--duration-fast);
 }

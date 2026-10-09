@@ -2,9 +2,8 @@
 
 import { html, raw, render, formValues, withBusy } from "../utils/dom.js";
 import { icon } from "../components/icons.js";
-import { signIn, signInDevMode, isDevModeAvailable, lastUsername } from "../auth.js";
+import { signIn, signInDevMode, isDevModeAvailable, lastUsername, lastApiKey } from "../auth.js";
 import { describeError, AuthError } from "../utils/errors.js";
-import { firebaseConfig } from "../../firebase-config.js";
 
 export function renderLogin(el) {
   render(
@@ -33,10 +32,9 @@ export function renderLogin(el) {
             <label class="field__label" for="f-apiKey">Key</label>
             <div class="input-icon">
               ${raw(icon("key", { size: 15 }))}
-              <input class="input" id="f-apiKey" name="apiKey" type="password" autocomplete="current-password" placeholder="Firebase API key (AIza…)" spellcheck="false" required>
+              <input class="input" id="f-apiKey" name="apiKey" type="password" value="${lastApiKey()}" autocomplete="current-password" placeholder="Firebase API key (AIza…)" spellcheck="false" required>
               <button type="button" class="input-icon__toggle icon-btn icon-btn--xs" data-toggle-key aria-label="Show key" aria-pressed="false">${raw(icon("eye", { size: 14 }))}</button>
             </div>
-            <p class="field__hint">Firebase Web API key for project <code class="code">${firebaseConfig.projectId}</code>.</p>
             <p class="field__error" data-error-for="apiKey" hidden></p>
           </div>
           <button type="submit" class="btn btn--primary btn--lg btn--block">Sign in${raw(icon("arrowRight", { size: 15 }))}</button>
@@ -117,5 +115,6 @@ export function renderLogin(el) {
     }
   });
 
-  (form.elements.username.value ? form.elements.apiKey : form.elements.username).focus();
+  const firstEmpty = [form.elements.username, form.elements.apiKey].find((i) => !i.value);
+  (firstEmpty || form.querySelector('[type="submit"]')).focus();
 }

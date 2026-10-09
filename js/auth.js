@@ -73,6 +73,7 @@ async function establish({ mode, username, apiKey }) {
   const user = { id: toUserId(username), username: username.trim(), mode };
   await connect({ mode, apiKey, user });
   writeJSON(SESSION_KEY, { mode, username: user.username, apiKey: mode === "firestore" ? apiKey : null });
+  if (mode === "firestore") writeJSON("lastApiKey", apiKey);
   setState({ user, authStatus: "signed-in" });
   touchProfile(user);
   return user;
@@ -127,6 +128,9 @@ export async function restoreSession() {
 }
 
 export const lastUsername = () => readJSON(SESSION_KEY)?.username || readJSON("lastUsername") || "";
+
+/** Last verified Firebase key, kept after sign-out so the login form can prefill it. */
+export const lastApiKey = () => readJSON(SESSION_KEY)?.apiKey || readJSON("lastApiKey") || "";
 
 export async function signOut() {
   const saved = readJSON(SESSION_KEY);

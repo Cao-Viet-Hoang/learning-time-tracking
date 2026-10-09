@@ -11,10 +11,15 @@ import { confirmDialog } from "./components/modal.js";
 import { ROUTES, navigate } from "./router.js";
 import { runAction } from "./actions.js";
 import { signOut } from "./auth.js";
-import { cycleTheme } from "./theme.js";
+import { applyTheme } from "./theme.js";
 import { getPrefs } from "./utils/storage.js";
 
 const PRIMARY = ROUTES.filter((r) => r.name !== "settings");
+const THEMES = [
+  { value: "system", label: "System", icon: "monitor" },
+  { value: "light", label: "Light", icon: "sun" },
+  { value: "dark", label: "Dark", icon: "moon" },
+];
 
 export function renderShell(el) {
   render(
@@ -71,7 +76,8 @@ export function renderShell(el) {
     )
   );
 
-  const accountMenu = (trigger) =>
+  const accountMenu = (trigger) => {
+    const activeTheme = getPrefs().theme;
     openMenu(
       trigger,
       [
@@ -79,7 +85,13 @@ export function renderShell(el) {
         "separator",
         { label: "Subjects", icon: "layers", onSelect: () => navigate("/subjects") },
         { label: "Settings", icon: "settings", onSelect: () => navigate("/settings") },
-        { label: `Theme: ${getPrefs().theme}`, icon: "moon", onSelect: () => cycleTheme() },
+        "separator",
+        ...THEMES.map((t) => ({
+          label: t.label,
+          icon: t.icon,
+          hint: t.value === activeTheme ? "✓" : "",
+          onSelect: () => applyTheme(t.value),
+        })),
         "separator",
         {
           label: "Sign out",
@@ -92,6 +104,7 @@ export function renderShell(el) {
       ],
       { label: "Account" }
     );
+  };
 
   el.querySelector("[data-account]").addEventListener("click", (event) => accountMenu(event.currentTarget));
   el.querySelector("[data-dock-more]").addEventListener("click", (event) =>

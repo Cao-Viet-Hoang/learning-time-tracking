@@ -40,12 +40,12 @@ function subjectRow(subject, maxTotal) {
     <div class="subject-row__spark">${sparkBars(subjectDailySeries(subject.id, 28), color)}</div>
     <div class="subject-row__stat">
       <span class="subject-row__label">This month</span>
-      <span class="mono">${formatDuration(stats.month, { empty: "—" })}</span>
+      <span class="subject-row__value mono">${formatDuration(stats.month, { empty: "—" })}</span>
       ${goal?.target ? html`<span class="subject-row__goal">${progressBar({ value: goal.actual, max: goal.target, color, tone: "subject", size: "xs" })}<span>${goal.percent}% of ${formatHours(goal.target)}</span></span>` : ""}
     </div>
     <div class="subject-row__stat subject-row__stat--total">
       <span class="subject-row__label">Total</span>
-      <span class="subject-row__total mono">${formatDuration(stats.total, { empty: "0m" })}</span>
+      <span class="subject-row__value mono">${formatDuration(stats.total, { empty: "0m" })}</span>
       <span class="subject-row__share" aria-hidden="true"><span style="width:${maxTotal ? (stats.total / maxTotal) * 100 : 0}%"></span></span>
     </div>
     <div class="subject-row__actions">
