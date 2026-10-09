@@ -1,0 +1,76 @@
+rules_version = '2';
+
+// Cadence — Learning Time Tracker
+//
+// The app currently signs in with "username + API key" (no Firebase Auth),
+// so these rules cannot verify *who* is writing. They restrict the database to
+// the app's collections and validate document shape, which blocks most
+// accidental or malformed writes.
+//
+// When Firebase Authentication is enabled (see js/auth.js), replace
+// `validUser(data)` with `request.auth != null && data.userId == request.auth.uid`
+// to get true per-user isolation.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function validUser(data) {
+      return data.userId is string && data.userId.size() > 0 && data.userId.size() <= 64;
+    }
+
+    function isDate(v) { return v is string && v.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'); }
+    function isTime(v) { return v is string && v.matches('^[0-2][0-9]:[0-5][0-9]$'); }
+
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if request.resource.data.userId == userId;
+    }
+
+    match /subjects/{id} {
+      allow read: if true;
+      allow delete: if true;
+      allow create, update: if validUser(request.resource.data)
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 60
+        && request.resource.data.archived is bool;
+    }
+
+    match /goals/{id} {
+      allow read: if true;
+      allow delete: if true;
+      allow create, update: if validUser(request.resource.data)
+        && request.resource.data.type in ['daily', 'monthly', 'yearly']
+        && request.resource.data.targetMinutes is int
+        && request.resource.data.targetMinutes > 0;
+    }
+
+    match /plannedSessions/{id} {
+      allow read: if true;
+      allow delete: if true;
+      allow create, update: if validUser(request.resource.data)
+        && isDate(request.resource.data.date)
+        && isTime(request.resource.data.startTime)
+        && isTime(request.resource.data.endTime)
+        && request.resource.data.subjectId is string
+        && request.resource.data.status in ['planned', 'completed', 'skipped'];
+    }
+
+    match /learningSessions/{id} {
+      allow read: if true;
+      allow delete: if true;
+      allow create, update: if validUser(request.resource.data)
+        && isDate(request.resource.data.date)
+        && isTime(request.resource.data.startTime)
+        && isTime(request.resource.data.endTime)
+        && request.resource.data.durationMinutes is int
+        && request.resource.data.durationMinutes > 0
+        && request.resource.data.source in ['timer', 'manual'];
+    }
+
+    // Everything else is closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
