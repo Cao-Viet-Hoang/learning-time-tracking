@@ -2,7 +2,7 @@ import { test, beforeEach, after } from "node:test";
 import assert from "node:assert/strict";
 import { signInFresh, signOutTest, flush } from "./helpers.js";
 import { state } from "../../js/state.js";
-import { createSubject, updateSubject, setSubjectArchived, nextColor, SUBJECT_COLORS } from "../../js/services/subjects.js";
+import { createSubject, updateSubject, setSubjectArchived, nextColor, SUBJECT_COLORS, PASTEL_COLORS, SUBJECT_ICONS, colorVar, inkFor, isCustomColor } from "../../js/services/subjects.js";
 import { ValidationError } from "../../js/utils/errors.js";
 
 beforeEach(signInFresh);
@@ -56,4 +56,38 @@ test("updateSubject keeps its own name and archive toggles", async () => {
   const subject = state.data.subjects.find((s) => s.id === id);
   assert.equal(subject.description, "mechanics");
   assert.equal(subject.archived, true);
+});
+
+test("pastel and custom colours are stored; invalid ones fall back", async () => {
+  const pastel = await createSubject({ name: "Art", color: "pastel-lavender" });
+  const custom = await createSubject({ name: "Music", color: "#A1B2C3" });
+  const bogus = await createSubject({ name: "Bogus", color: "#12345" });
+  await flush();
+  const byId = (id) => state.data.subjects.find((s) => s.id === id);
+  assert.equal(byId(pastel).color, "pastel-lavender");
+  assert.equal(byId(custom).color, "#a1b2c3");
+  assert.ok(SUBJECT_COLORS.includes(byId(bogus).color));
+});
+
+test("colorVar maps palette tokens to CSS variables and passes custom hex through", () => {
+  assert.equal(colorVar("blue"), "var(--c-blue)");
+  assert.equal(colorVar("pastel-mint"), "var(--c-pastel-mint)");
+  assert.equal(colorVar("#a1b2c3"), "#a1b2c3");
+  assert.equal(colorVar("nope"), "var(--c-blue)");
+  assert.equal(isCustomColor("#ABCDEF"), true);
+  assert.equal(isCustomColor("red"), false);
+});
+
+test("inkFor picks dark text on pastels and white on deep colours", () => {
+  for (const c of PASTEL_COLORS) assert.equal(inkFor(c), "#1a1a1a", c);
+  assert.equal(inkFor("violet"), "#fff");
+  assert.equal(inkFor("#000000"), "#fff");
+  assert.equal(inkFor("#ffffff"), "#1a1a1a");
+});
+
+test("palette and icon lists have no duplicates", () => {
+  assert.equal(new Set(SUBJECT_COLORS).size, SUBJECT_COLORS.length);
+  assert.equal(new Set(SUBJECT_ICONS).size, SUBJECT_ICONS.length);
+  assert.ok(PASTEL_COLORS.length >= 12);
+  assert.ok(SUBJECT_ICONS.length >= 50);
 });

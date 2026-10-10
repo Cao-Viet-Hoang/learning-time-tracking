@@ -238,6 +238,43 @@ describe(`reduced motion: ${reducedMotion}`, () => {
     assert.match(await page.locator(".toast").last().textContent(), /Split at midnight into 2 sessions/);
   });
 
+  test(`subject colour picker: pastel preset, custom hex and readable session blocks`, async () => {
+    await app(async () => (await import("/js/actions.js")).runAction("new-subject"));
+    await page.fill('dialog[open] input[name="name"]', "Watercolor");
+    await page.locator('dialog[open] [name="color"][value="pastel-mint"]').locator("..").click();
+    const preview = page.locator("dialog[open] [data-color-preview]");
+    assert.equal(await preview.textContent(), "Watercolor");
+    assert.equal(await preview.evaluate((el) => el.style.getPropertyValue("--ink")), "#1a1a1a", "dark text on pastel");
+
+    await page.fill("dialog[open] [data-custom-hex]", "3366cc");
+    assert.equal(await page.locator('dialog[open] [name="color"]:checked').getAttribute("value"), "#3366cc");
+    await page.locator('dialog[open] [name="color"][value="pastel-mint"]').locator("..").click();
+    assert.equal(await page.locator("dialog[open] [data-custom-hex]").inputValue(), "", "choosing a preset clears the hex field");
+    await page.click('dialog[open] button[type="submit"]');
+    await page.waitForFunction(() => !document.querySelector("dialog"));
+
+    const subject = await app(async () => (await import("/js/state.js")).state.data.subjects.find((s) => s.name === "Watercolor"));
+    assert.equal(subject.color, "pastel-mint");
+
+    // A logged session on that subject renders dark text on its pastel block.
+    await app(async (id) => {
+      const { createManualSession } = await import("/js/services/learningSessions.js");
+      const { todayKey, addDays } = await import("/js/utils/time.js");
+      await createManualSession({ date: addDays(todayKey(), -1), startTime: "09:00", endTime: "10:00", subjectId: id });
+      const { navigate } = await import("/js/router.js");
+      navigate("/planner");
+    }, subject.id);
+    await page.waitForSelector("[data-view-root]");
+    await app(async () => {
+      const { todayKey, addDays } = await import("/js/utils/time.js");
+      document.querySelector("#planner-date").value = addDays(todayKey(), -1);
+      document.querySelector("#planner-date").dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    const block = page.locator(".block--session").first();
+    await block.waitFor();
+    assert.equal(await block.evaluate((el) => getComputedStyle(el).color), "rgb(26, 26, 26)");
+  });
+
   test(`dialog closes with a fade, not an instant pop`, async () => {
     await app(async () => (await import("/js/actions.js")).runAction("new-subject"));
     await page.waitForTimeout(300);

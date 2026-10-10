@@ -14,7 +14,7 @@ import { reactive, dataReady, loadingView } from "./viewHelpers.js";
 import { updateParams } from "../router.js";
 import { plansOn, sessionsOn, minutesOn, getSubject } from "../domain/selectors.js";
 import { evaluateDay, planSummary, PLAN_STATUS_META } from "../domain/plans.js";
-import { colorVar } from "../services/subjects.js";
+import { colorVar, inkFor } from "../services/subjects.js";
 import { openPlanForm } from "../forms/planForm.js";
 import { readJSON, writeJSON } from "../utils/storage.js";
 import {
@@ -167,7 +167,7 @@ function dayCanvas(date) {
         ${sessionBlocks.map(({ s, start, end, lane, lanes }) => {
           const subject = getSubject(s.subjectId);
           return html`<button type="button" class="block block--session" data-session-id="${s.id}" data-session-action="edit"
-              style="top:${top(start)}px;height:${Math.max(16, top(end) - top(start) - 3)}px;left:calc(${(lane / lanes) * 100}% + 2px);width:calc(${100 / lanes}% - 4px);--subject:${colorVar(subject.color)}"
+              style="top:${top(start)}px;height:${Math.max(16, top(end) - top(start) - 3)}px;left:calc(${(lane / lanes) * 100}% + 2px);width:calc(${100 / lanes}% - 4px);--subject:${colorVar(subject.color)};--subject-ink:${inkFor(subject.color)}"
               data-tip="${subject.name}${s.topic ? ` · ${s.topic}` : ""} · ${formatDuration(s.durationMinutes)}" aria-label="Logged ${esc(subject.name)} ${s.startTime}–${s.endTime}">
             <span class="block__time mono">${formatDuration(s.durationMinutes)}</span>
           </button>`;

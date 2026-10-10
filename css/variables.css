@@ -51,6 +51,24 @@
   --c-violet: #4a3aa7;
   --c-red: #e34948;
 
+  /* Pastel subject palette (soft; text on top uses dark ink) */
+  --c-pastel-rose: #f4b6c2;
+  --c-pastel-peach: #f8c8a8;
+  --c-pastel-apricot: #f6d29b;
+  --c-pastel-lemon: #efe08e;
+  --c-pastel-lime: #cfe6a0;
+  --c-pastel-mint: #a8e0c4;
+  --c-pastel-sage: #bccfb0;
+  --c-pastel-teal: #98d4d2;
+  --c-pastel-sky: #a9d2f2;
+  --c-pastel-periwinkle: #b4bdf2;
+  --c-pastel-lavender: #c9b8ef;
+  --c-pastel-lilac: #dcb4e6;
+  --c-pastel-mauve: #d9b2c4;
+  --c-pastel-sand: #e3d2b4;
+  --c-pastel-stone: #c9c6bf;
+  --c-pastel-coral: #f5a99e;
+
   /* Sequential ramp (heatmap) */
   --seq-0: #ecebe6;
   --seq-1: #b7d3f6;

@@ -660,11 +660,11 @@
   padding: 4px 6px;
   background: var(--subject);
   border: 0;
-  color: #fff;
+  color: var(--subject-ink, #fff);
 }
 
 .block--session .block__time {
-  color: #fff;
+  color: var(--subject-ink, #fff);
   font-weight: var(--weight-semibold);
 }
 
@@ -1135,7 +1135,8 @@
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--subject) 14%, var(--surface));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--subject) 30%, transparent);
-  color: var(--subject);
+  /* Mixed with the text colour so light (pastel) subjects stay legible. */
+  color: color-mix(in srgb, var(--subject) 55%, var(--text-primary));
 }
 
 .subject-row__text {
