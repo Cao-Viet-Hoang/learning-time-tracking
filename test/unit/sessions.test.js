@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { signInFresh, signOutTest, flush } from "./helpers.js";
 import { state } from "../../js/state.js";
 import { createSubject, setSubjectArchived } from "../../js/services/subjects.js";
-import { createManualSession, updateSession, saveTimerSession } from "../../js/services/learningSessions.js";
+import { createManualSession, updateSession, saveTimerSession, splitAtMidnight } from "../../js/services/learningSessions.js";
 import { createPlannedSession } from "../../js/services/plannedSessions.js";
 import { addDays, todayKey } from "../../js/utils/time.js";
 
@@ -109,3 +109,54 @@ test("undoing a plan delete restores the same id and status", async () => {
   assert.equal(state.data.plannedSessions[0].status, "completed");
 });
 
+test("splitAtMidnight keeps same-day runs whole", () => {
+  const start = new Date(2026, 9, 9, 14, 0).getTime();
+  assert.deepEqual(splitAtMidnight(start, start + 45 * 60000, 45), [{ date: "2026-10-09", startTime: "14:00", endTime: "14:45", durationMinutes: 45 }]);
+});
+
+test("splitAtMidnight shares minutes by time spent each day and keeps the exact total", () => {
+  const start = new Date(2026, 9, 9, 23, 0).getTime();
+  const end = new Date(2026, 9, 10, 1, 0).getTime();
+  // 120 min of wall-clock with a 30 min pause -> 90 tracked minutes, shared evenly.
+  const parts = splitAtMidnight(start, end, 90);
+  assert.deepEqual(parts.map((p) => [p.date, p.startTime, p.endTime, p.durationMinutes]), [
+    ["2026-10-09", "23:00", "00:00", 45],
+    ["2026-10-10", "00:00", "01:00", 45],
+  ]);
+  // Uneven split with rounding still adds up.
+  const odd = splitAtMidnight(new Date(2026, 9, 9, 23, 59, 20).getTime(), new Date(2026, 9, 10, 0, 7).getTime(), 8);
+  assert.equal(odd.reduce((sum, p) => sum + p.durationMinutes, 0), 8);
+});
+
+test("splitAtMidnight drops a part that rounds to zero minutes", () => {
+  const start = new Date(2026, 9, 9, 23, 59, 50).getTime();
+  const end = new Date(2026, 9, 10, 0, 30).getTime();
+  const parts = splitAtMidnight(start, end, 30);
+  assert.deepEqual(parts.map((p) => [p.date, p.durationMinutes]), [["2026-10-10", 30]]);
+});
+
+test("splitAtMidnight covers runs spanning several days", () => {
+  const start = new Date(2026, 9, 8, 22, 0).getTime();
+  const end = new Date(2026, 9, 10, 2, 0).getTime(); // 28h
+  const parts = splitAtMidnight(start, end, 28 * 60);
+  assert.deepEqual(parts.map((p) => [p.date, p.durationMinutes]), [
+    ["2026-10-08", 120],
+    ["2026-10-09", 1440],
+    ["2026-10-10", 120],
+  ]);
+});
+
+test("a cross-midnight timer save is all-or-nothing", async () => {
+  const { db } = await import("../../js/data/db.js");
+  const store = db();
+  const original = store.batch;
+  store.batch = () => Promise.reject(new Error("offline"));
+  try {
+    const startedAt = new Date(2026, 9, 9, 23, 30).getTime();
+    await assert.rejects(saveTimerSession({ subjectId, startedAt, elapsedMs: 60 * 60000 }, startedAt + 60 * 60000), /offline/);
+  } finally {
+    store.batch = original;
+  }
+  await flush();
+  assert.equal(state.data.learningSessions.length, 0);
+});

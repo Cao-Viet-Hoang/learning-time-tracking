@@ -139,7 +139,9 @@ export async function handleStop(button) {
     const subject = getSubject(state.timer.subjectId);
     const result = await withBusy(button, () => stopTimer({ now }));
     focusApi?.close();
-    if (result.saved) toastSuccess(`${formatDuration(result.minutes)} of ${subject.name} saved`);
+    if (result.saved) {
+      toastSuccess(`${formatDuration(result.minutes)} of ${subject.name} saved`, result.parts > 1 ? { description: `Split at midnight into ${result.parts} sessions, one per day.` } : undefined);
+    }
   } catch (error) {
     // Timer stays persisted, so nothing is lost; the user can retry.
     toastError(error, { description: "Your timer is still running — try stopping again." });

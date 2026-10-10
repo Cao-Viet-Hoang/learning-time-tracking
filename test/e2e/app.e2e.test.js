@@ -46,7 +46,7 @@ async function createSubjectDirect(name) {
 async function slowWrites(ms) {
   await app(async (delay) => {
     const store = (await import("/js/data/db.js")).db();
-    for (const method of ["set", "update", "remove"]) {
+    for (const method of ["set", "update", "remove", "batch"]) {
       const original = store[method].bind(store);
       store[method] = async (...args) => {
         const result = await original(...args);
@@ -217,6 +217,25 @@ describe(`reduced motion: ${reducedMotion}`, () => {
     await page.waitForTimeout(100);
     const focused = await app(() => document.activeElement?.dataset?.action || document.activeElement?.tagName);
     assert.equal(focused, "log-session");
+  });
+
+  test(`stopping a run that crossed midnight saves one session per day`, async () => {
+    await startTimerViaDialog();
+    await app(async () => {
+      const { state } = await import("/js/state.js");
+      const { updateTimerDetails } = await import("/js/services/timer.js");
+      // Started yesterday at 23:30.
+      const d = new Date();
+      const startedAt = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1, 23, 30).getTime();
+      updateTimerDetails({ startedAt, runningSince: startedAt, accumulatedMs: 0 });
+      return state.timer;
+    });
+    await page.locator('[data-mini-timer] [data-timer="stop"]').first().click();
+    await page.waitForFunction(async () => !(await import("/js/state.js")).state.timer);
+    const dates = await app(async () => (await import("/js/state.js")).state.data.learningSessions.map((s) => s.date).sort());
+    assert.equal(dates.length, 2);
+    assert.notEqual(dates[0], dates[1]);
+    assert.match(await page.locator(".toast").last().textContent(), /Split at midnight into 2 sessions/);
   });
 
   test(`dialog closes with a fade, not an instant pop`, async () => {

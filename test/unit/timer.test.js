@@ -57,7 +57,7 @@ test("stopTimer writes exactly one session using the pinned end time", async () 
   rewind(10);
   const result = await stopTimer({ now: Date.now() });
   await flush();
-  assert.deepEqual(result, { saved: true, minutes: 10 });
+  assert.deepEqual(result, { saved: true, minutes: 10, parts: 1 });
   assert.equal(state.timer, null);
   assert.equal(state.data.learningSessions.length, 1);
   assert.equal(state.data.learningSessions[0].durationMinutes, 10);
@@ -67,12 +67,12 @@ test("a failed write keeps the timer so no time is lost", async () => {
   startTimer({ subjectId });
   rewind(3);
   const store = db();
-  const original = store.set;
-  store.set = () => Promise.reject(new Error("network down"));
+  const original = store.batch;
+  store.batch = () => Promise.reject(new Error("network down"));
   try {
     await assert.rejects(stopTimer(), /network down/);
   } finally {
-    store.set = original;
+    store.batch = original;
   }
   assert.notEqual(state.timer, null);
   assert.equal(state.data.learningSessions.length, 0);
@@ -80,7 +80,7 @@ test("a failed write keeps the timer so no time is lost", async () => {
 
 test("short timers are not saved and discard clears the timer", async () => {
   startTimer({ subjectId });
-  assert.deepEqual(await stopTimer(), { saved: false, minutes: 0 });
+  assert.deepEqual(await stopTimer(), { saved: false, minutes: 0, parts: 0 });
   assert.equal(state.timer, null);
   startTimer({ subjectId });
   discardTimer();
@@ -90,3 +90,21 @@ test("short timers are not saved and discard clears the timer", async () => {
   assert.equal(state.data.learningSessions.length, 0);
 });
 
+test("a run across midnight is saved as one session per day", async () => {
+  startTimer({ subjectId });
+  const startedAt = new Date(2026, 9, 9, 23, 50).getTime();
+  const now = new Date(2026, 9, 10, 1, 30).getTime();
+  state.timer = { ...state.timer, startedAt, runningSince: startedAt, accumulatedMs: 0 };
+  const result = await stopTimer({ now });
+  await flush();
+  assert.deepEqual(result, { saved: true, minutes: 100, parts: 2 });
+  const sessions = [...state.data.learningSessions].sort((a, b) => a.date.localeCompare(b.date));
+  assert.deepEqual(
+    sessions.map((s) => [s.date, s.startTime, s.endTime, s.durationMinutes]),
+    [
+      ["2026-10-09", "23:50", "00:00", 10],
+      ["2026-10-10", "00:00", "01:30", 90],
+    ]
+  );
+  assert.equal(state.timer, null);
+});

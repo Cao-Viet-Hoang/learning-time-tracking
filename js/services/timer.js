@@ -69,22 +69,23 @@ export function updateTimerDetails(patch) {
 }
 
 /**
- * Saves the session to the store and clears the timer. Returns { saved, minutes }.
+ * Saves the session to the store and clears the timer. Returns { saved, minutes, parts }
+ * (parts > 1 when the run crossed midnight and was split per day).
  * `now` pins the end time, so the saved duration matches the moment Stop was pressed.
  */
 export async function stopTimer({ now = Date.now() } = {}) {
   const t = state.timer;
-  if (!t) return { saved: false, minutes: 0 };
+  if (!t) return { saved: false, minutes: 0, parts: 0 };
   const snapshot = { ...t, elapsedMs: elapsedMs(t, now) };
   const minutes = Math.round(snapshot.elapsedMs / 60000);
   if (minutes < 1) {
     persist(null);
-    return { saved: false, minutes: 0 };
+    return { saved: false, minutes: 0, parts: 0 };
   }
   // Keep the timer until the write is accepted, so a failure never loses time.
-  await saveTimerSession(snapshot, now);
+  const ids = await saveTimerSession(snapshot, now);
   persist(null);
-  return { saved: true, minutes };
+  return { saved: true, minutes, parts: ids.length };
 }
 
 export function discardTimer() {

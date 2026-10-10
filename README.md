@@ -50,7 +50,7 @@ npm run test:e2e     # browser tests (Playwright + Chromium) for dialogs, timer 
 
 - **Today**: progress toward the daily goal, a central timeline (planned / completed / in progress / missed / unplanned sessions, plus a "now" marker), month and year pace (ahead / on track / behind, with "expected by today"), streak, and per-subject goals.
 - **Planner**: a week strip, an hour-grid day canvas (click an empty slot to plan a block; Plan and Actual are shown side by side), a timeline view, a month calendar, planned-vs-actual table, duplicate to next day/week, and copy the previous day.
-- **Timer**: start, pause, resume and stop. A mini timer stays in the top bar (or the mobile dock), and there's an expanded focus mode. It's saved in `localStorage`, so it survives navigation, reloads and multiple tabs. Only the finished session is written to Firestore.
+- **Timer**: start, pause, resume and stop. A mini timer stays in the top bar (or the mobile dock), and there's an expanded focus mode. It's saved in `localStorage`, so it survives navigation, reloads and multiple tabs. Only the finished session is written to Firestore. A run that crosses midnight is saved as one session per day (in one batch), so each day's goal and streak get their share.
 - **Manual sessions**: same shape as timer sessions (`source: "manual"`), and they go through the same analytics.
 - **History**: grouped by day, with search, subject / date range / source filters, sort, inline details, edit, and delete with undo.
 - **Subjects**: create, edit, archive and restore, plus stats and a detail drawer. Archived subjects keep their history but can't be selected for new plans or sessions.

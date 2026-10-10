@@ -117,8 +117,49 @@ export async function restoreSession(session) {
 }
 
 /**
- * Persists a finished timer run.
+ * Splits the wall-clock span [startedAt, endedAt] at local midnights and shares
+ * `totalMinutes` between the days in proportion to the time spent in each, so a
+ * session from 23:50 to 01:30 counts toward both days' goals. (Pauses aren't
+ * recorded with timestamps, so they are assumed to be spread evenly.)
+ * Returns [{ date, startTime, endTime, durationMinutes }] with no empty parts;
+ * the minutes always add up to totalMinutes.
+ */
+export function splitAtMidnight(startedAt, endedAt, totalMinutes) {
+  const parts = [];
+  let cursor = new Date(startedAt);
+  const end = new Date(Math.max(endedAt, startedAt));
+  while (cursor < end) {
+    const midnight = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 1);
+    const partEnd = midnight < end ? midnight : end;
+    parts.push({ from: cursor, to: partEnd });
+    cursor = partEnd;
+  }
+  if (!parts.length) parts.push({ from: new Date(startedAt), to: end });
+
+  // Largest-remainder rounding keeps the total exact.
+  const span = end - new Date(startedAt) || 1;
+  const shares = parts.map((p) => ((p.to - p.from) / span) * totalMinutes);
+  const minutes = shares.map(Math.floor);
+  let left = totalMinutes - minutes.reduce((a, b) => a + b, 0);
+  shares
+    .map((share, i) => [share - Math.floor(share), i])
+    .sort((a, b) => b[0] - a[0])
+    .forEach(([, i]) => {
+      if (left > 0) {
+        minutes[i] += 1;
+        left -= 1;
+      }
+    });
+
+  return parts
+    .map((p, i) => ({ date: toDateKey(p.from), startTime: toTimeString(p.from), endTime: toTimeString(p.to), durationMinutes: minutes[i] }))
+    .filter((p) => p.durationMinutes > 0);
+}
+
+/**
+ * Persists a finished timer run, as one session per calendar day it touched.
  * `timer` = { subjectId, topic, note, plannedSessionId, startedAt, elapsedMs }
+ * Returns the ids of the written sessions.
  */
 export async function saveTimerSession(timer, endedAt = Date.now()) {
   const durationMinutes = Math.round(timer.elapsedMs / 60000);
@@ -127,21 +168,24 @@ export async function saveTimerSession(timer, endedAt = Date.now()) {
   if (subjectError) throw new ValidationError(subjectError);
 
   const store = db();
-  const start = new Date(timer.startedAt);
-  const id = store.newId(COLLECTION);
-  await store.set(COLLECTION, id, {
-    userId: currentUserId(),
-    date: toDateKey(start),
-    startTime: toTimeString(start),
-    endTime: toTimeString(new Date(endedAt)),
-    durationMinutes,
-    subjectId: timer.subjectId,
-    topic: (timer.topic || "").trim(),
-    note: (timer.note || "").trim(),
-    plannedSessionId: timer.plannedSessionId || null,
-    source: "timer",
-    createdAt: store.stamp(),
-    updatedAt: store.stamp(),
-  });
-  return id;
+  const userId = currentUserId();
+  const ops = splitAtMidnight(timer.startedAt, endedAt, durationMinutes).map((part) => ({
+    type: "set",
+    collection: COLLECTION,
+    id: store.newId(COLLECTION),
+    data: {
+      userId,
+      ...part,
+      subjectId: timer.subjectId,
+      topic: (timer.topic || "").trim(),
+      note: (timer.note || "").trim(),
+      plannedSessionId: timer.plannedSessionId || null,
+      source: "timer",
+      createdAt: store.stamp(),
+      updatedAt: store.stamp(),
+    },
+  }));
+  // One batch: either every day's part is saved or none is (the timer then stays running).
+  await store.batch(ops);
+  return ops.map((op) => op.id);
 }
