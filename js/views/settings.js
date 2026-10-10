@@ -124,6 +124,22 @@ export function mount(el) {
           ${row("Delete all learning data", "Permanently removes every subject, goal, plan and session for this user.", `<button type="button" class="btn btn--danger btn--sm" data-settings="delete-all">${icon("trash", { size: 14 })}Delete everything</button>`)}
         </section>`
     );
+    if (bulkAction) {
+      root.querySelectorAll("[data-settings]").forEach((b) => (b.disabled = true));
+      root.querySelector(`[data-settings="${bulkAction}"]`)?.classList.add("is-loading");
+    }
+  };
+
+  let bulkAction = null;
+  const runBulk = async (btn, task) => {
+    bulkAction = btn.dataset.settings;
+    root.querySelectorAll("[data-settings]").forEach((b) => (b.disabled = true));
+    try {
+      return await withBusy(btn, task);
+    } finally {
+      bulkAction = null;
+      draw();
+    }
   };
 
   root.addEventListener("click", async (event) => {
@@ -136,6 +152,8 @@ export function mount(el) {
     const btn = event.target.closest("[data-settings]");
     if (!btn) return;
     const action = btn.dataset.settings;
+    // Bulk actions re-render this view as records stream in, which would hand back an enabled button.
+    if (bulkAction) return;
     try {
       if (action === "signout") {
         if (state.timer && !(await confirmDialog({ title: "Sign out with a running timer?", message: "The timer stays saved on this device and resumes when you sign back in.", confirmLabel: "Sign out", tone: "primary" }))) return;
@@ -144,15 +162,15 @@ export function mount(el) {
       else if (action === "export-csv") exportCsv();
       else if (action === "seed") {
         if (!(await confirmDialog({ title: "Load demo data?", message: "Adds sample subjects, goals, sessions and plans to your account so you can explore the app.", confirmLabel: "Load demo data", tone: "primary" }))) return;
-        const count = await withBusy(btn, () => loadDemoData());
+        const count = await runBulk(btn, () => loadDemoData());
         toastSuccess(`Demo data loaded (${count} records)`);
       } else if (action === "clear-demo") {
         if (!(await confirmDialog({ title: "Remove demo data?", message: "Deletes all records created by the demo generator. Your own data stays.", confirmLabel: "Remove" }))) return;
-        const count = await withBusy(btn, () => clearDemoData());
+        const count = await runBulk(btn, () => clearDemoData());
         toastSuccess(`Removed ${count} demo records`);
       } else if (action === "delete-all") {
         if (!(await confirmDialog({ title: "Delete all learning data?", message: "Every subject, goal, plan and session for this user will be permanently deleted. Export first if you want a backup.", confirmLabel: "Delete everything" }))) return;
-        const count = await withBusy(btn, () => deleteAllUserData());
+        const count = await runBulk(btn, () => deleteAllUserData());
         toastSuccess(`Deleted ${count} records`);
       }
     } catch (error) {

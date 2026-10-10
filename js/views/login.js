@@ -88,15 +88,28 @@ export function renderLogin(el) {
     }
   };
 
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const values = formValues(form);
+  // Only one sign-in at a time: two concurrent connects would leave listeners of both backends running.
+  let signingIn = false;
+  const attempt = async (button, task) => {
+    if (signingIn) return;
+    signingIn = true;
+    const others = [...el.querySelectorAll("form button, [data-dev-login]")].filter((b) => b !== button);
+    others.forEach((b) => (b.disabled = true));
     try {
-      await withBusy(form.querySelector('[type="submit"]'), () => signIn(values));
+      await withBusy(button, task);
     } catch (error) {
       if (!(error instanceof AuthError)) console.error(error);
       showError(error);
+    } finally {
+      signingIn = false;
+      if (button.isConnected) others.forEach((b) => (b.disabled = false));
     }
+  };
+
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const values = formValues(form);
+    attempt(form.querySelector('[type="submit"]'), () => signIn(values));
   });
 
   el.querySelector("[data-toggle-key]").addEventListener("click", (event) => {
@@ -109,12 +122,8 @@ export function renderLogin(el) {
     btn.innerHTML = icon(show ? "eyeOff" : "eye", { size: 14 });
   });
 
-  el.querySelector("[data-dev-login]")?.addEventListener("click", async (event) => {
-    try {
-      await withBusy(event.currentTarget, () => signInDevMode({ username: form.elements.username.value }));
-    } catch (error) {
-      showError(error);
-    }
+  el.querySelector("[data-dev-login]")?.addEventListener("click", (event) => {
+    attempt(event.currentTarget, () => signInDevMode({ username: form.elements.username.value }));
   });
 
   (form.elements.username.value ? form.elements.apiKey : form.elements.username).focus();

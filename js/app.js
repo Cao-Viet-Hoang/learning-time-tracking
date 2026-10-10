@@ -14,7 +14,7 @@ import { startRouter, stopRouter, navigate, ROUTES } from "./router.js";
 import { initActions, runAction } from "./actions.js";
 import { initTimerUI, openStartTimer, openFocusTimer, toggleTimer } from "./components/timer.js";
 import { initTooltips } from "./components/tooltip.js";
-import { toastError } from "./components/toast.js";
+import { toastError, clearToasts } from "./components/toast.js";
 import { isTypingTarget } from "./utils/dom.js";
 import { getPrefs } from "./utils/storage.js";
 import { describeError } from "./utils/errors.js";
@@ -55,6 +55,9 @@ function showSignedOut() {
   stopRouter();
   shell?.destroy();
   shell = null;
+  // Open dialogs and "Undo" toasts belong to the previous user's session.
+  clearToasts();
+  document.querySelectorAll("dialog").forEach((d) => d.remove());
   appEl.classList.add("is-auth");
   renderLogin(appEl);
 }

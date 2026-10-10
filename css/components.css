@@ -203,6 +203,14 @@
   }
 }
 
+/* A frozen spinner looks like a hang: keep it turning (slower) even with reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  .btn.is-loading::after {
+    animation-duration: 1.4s !important;
+    animation-iteration-count: infinite !important;
+  }
+}
+
 .icon-btn {
   --size: 32px;
   display: inline-grid;
@@ -1022,6 +1030,21 @@ input[type="number"].input {
 .confirm__message {
   color: var(--text-secondary);
   font-size: var(--text-base);
+}
+
+/* Reduced motion: no slide or scale, just a quick cross-fade so dialogs don't pop in and out. */
+@media (prefers-reduced-motion: reduce) {
+  .dialog .dialog__panel,
+  .dialog::backdrop {
+    animation-name: fade-in !important;
+    animation-duration: 140ms !important;
+  }
+
+  .dialog.is-closing .dialog__panel,
+  .dialog.is-closing::backdrop {
+    animation-name: fade-out !important;
+    animation-duration: 160ms !important;
+  }
 }
 
 @keyframes dialog-in {

@@ -59,9 +59,8 @@ export function openDialog({
       onClose?.(result);
       if (previouslyFocused?.isConnected) previouslyFocused.focus?.({ preventScroll: true });
     };
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduced) finish();
-    else setTimeout(finish, 180);
+    // Reduced motion swaps the slide for a short fade (see components.css), so always wait for it.
+    setTimeout(finish, 180);
   };
 
   dialog.addEventListener("cancel", (event) => {
@@ -69,8 +68,11 @@ export function openDialog({
     close();
   });
   // Click on the backdrop (the dialog element itself, outside the panel) closes it.
+  // Ignore the backdrop briefly after opening: the second click of a double-click
+  // on the trigger lands on the new backdrop and would close the dialog at once.
+  const openedAt = performance.now();
   dialog.addEventListener("mousedown", (event) => {
-    if (event.target === dialog) dialog.dataset.backdropDown = "1";
+    if (event.target === dialog && performance.now() - openedAt > 350) dialog.dataset.backdropDown = "1";
   });
   dialog.addEventListener("click", (event) => {
     if (event.target === dialog && dialog.dataset.backdropDown) close();

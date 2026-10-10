@@ -34,6 +34,18 @@ The key is checked against a SHA-256 fingerprint in `firebase-config.js`, so the
 
 Go to **Settings → Development utilities → Load demo data**. This generates 4 subjects, goals, about 4 months of sessions and upcoming plans. Demo records are tagged `demo: true`, and **Remove demo data** deletes only those records.
 
+## Tests
+
+The app itself needs no install. `package.json` only exists for the test tooling.
+
+```bash
+npm install          # Playwright, for the browser tests
+npm test             # unit tests (node:test): utils, services, timer, against the local backend
+npm run test:e2e     # browser tests (Playwright + Chromium) for dialogs, timer and toasts
+```
+
+`test/unit/` imports the app's ES modules directly in Node, with small browser shims in `setup.js`. `test/e2e/` serves the folder with a tiny Node server and drives the app in local dev mode. It runs every flow twice, with and without `prefers-reduced-motion`. If Chromium is missing, run `npx playwright install chromium`.
+
 ## Features
 
 - **Today**: progress toward the daily goal, a central timeline (planned / completed / in progress / missed / unplanned sessions, plus a "now" marker), month and year pace (ahead / on track / behind, with "expected by today"), streak, and per-subject goals.

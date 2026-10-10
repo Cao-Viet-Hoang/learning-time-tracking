@@ -37,12 +37,17 @@ export function bindDialogForm(api, { submit, success, conflictLabel = "Save any
     allowConflicts = false;
   });
 
+  let submitting = false;
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
+    // Enter key / a second click while saving (or while the dialog fades out) must not write twice.
+    if (submitting) return;
+    submitting = true;
     showFieldErrors(form, {});
     setBanner("");
     try {
-      const result = await withBusy(submitBtn, () => submit(formValues(form), { allowConflicts }));
+      const result = await withBusy(submitBtn, () => submit(formValues(form), { allowConflicts }), { keepOnSuccess: true });
+      api.setBusy(true);
       const message = typeof success === "function" ? success(result) : success;
       if (message) toastSuccess(message, result?.queued ? { description: "Saved offline — will sync when you're back online." } : undefined);
       api.close(result);
@@ -56,6 +61,9 @@ export function bindDialogForm(api, { submit, success, conflictLabel = "Save any
         setBanner(describeError(error));
         toastError(error);
       }
+      submitting = false;
+    } finally {
+      allowConflicts = false;
     }
   });
   return form;

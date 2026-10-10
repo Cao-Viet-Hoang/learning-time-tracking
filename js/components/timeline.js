@@ -15,7 +15,7 @@ import { quickStart, openFocusTimer } from "./timer.js";
 import { colorVar } from "../services/subjects.js";
 import { getSubject, sessionsOn } from "../domain/selectors.js";
 import { evaluateDay, PLAN_STATUS_META } from "../domain/plans.js";
-import { setPlanStatus, deletePlannedSession, duplicatePlannedSession, createPlannedSession } from "../services/plannedSessions.js";
+import { setPlanStatus, deletePlannedSession, duplicatePlannedSession, restorePlannedSession } from "../services/plannedSessions.js";
 import { elapsedMs } from "../services/timer.js";
 import { openPlanForm } from "../forms/planForm.js";
 import { openSessionForm } from "../forms/sessionForm.js";
@@ -187,7 +187,7 @@ export async function deletePlanWithUndo(plan) {
       tone: "success",
       action: {
         label: "Undo",
-        onClick: () => run(() => createPlannedSession(plan, { allowConflicts: true }), "Plan restored"),
+        onClick: () => run(() => restorePlannedSession(plan), "Plan restored"),
       },
     });
   } catch (error) {

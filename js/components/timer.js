@@ -19,6 +19,10 @@ import { ValidationError } from "../utils/errors.js";
 
 let tickHandle = null;
 let focusApi = null;
+let startApi = null;
+let uiBound = false;
+/** Set while a stop/discard is in progress: the clock is frozen and timer controls are locked. */
+let stopping = null;
 
 /* ---------- Start ---------- */
 
@@ -27,6 +31,7 @@ export function openStartTimer(prefill = {}) {
     openFocusTimer();
     return;
   }
+  if (startApi) return;
   const subjects = activeSubjects();
   const values = { subjectId: subjects.length === 1 ? subjects[0].id : "", topic: "", ...prefill };
 
@@ -46,14 +51,21 @@ export function openStartTimer(prefill = {}) {
     onMount: (el) => {
       if (values.subjectId) el.querySelector('[name="topic"]')?.focus();
     },
+    onClose: () => {
+      if (startApi === api) startApi = null;
+    },
   });
+  startApi = api;
   const form = api.el.querySelector("form");
   bindTopicSuggestions(form);
+  let started = false;
   form.addEventListener("submit", (event) => {
     event.preventDefault();
+    if (started) return;
     const v = formValues(form);
     try {
       startTimer({ subjectId: v.subjectId, topic: v.topic, plannedSessionId: prefill.plannedSessionId || null });
+      started = true;
       api.close();
       toast(`Tracking ${getSubject(v.subjectId).name}`, { tone: "info", duration: 2400 });
     } catch (error) {
@@ -83,46 +95,80 @@ export function quickStart({ subjectId, topic = "", plannedSessionId = null }) {
 
 /* ---------- Stop / discard ---------- */
 
+/**
+ * Freezes the clock at `now` and locks every timer control until the returned
+ * release() is called, so a second click can never start a second stop.
+ */
+function beginStopping(now = Date.now()) {
+  stopping = { frozenMs: elapsedMs(state.timer, now) };
+  document.body.classList.add("timer-stopping");
+  tick();
+  lockControls();
+  return () => {
+    stopping = null;
+    document.body.classList.remove("timer-stopping");
+    lockControls();
+    tick();
+  };
+}
+
+function lockControls() {
+  document.querySelectorAll('[data-timer="stop"], [data-timer="toggle"], [data-timer="discard"]').forEach((btn) => {
+    btn.disabled = Boolean(stopping);
+  });
+}
+
 export async function handleStop(button) {
-  if (!state.timer) return;
-  const ms = elapsedMs();
-  if (ms < 60000) {
-    const ok = await confirmDialog({
-      title: "Discard this session?",
-      message: "Sessions shorter than one minute aren't saved.",
-      confirmLabel: "Discard",
-    });
-    if (ok) {
-      discardTimer();
-      focusApi?.close();
-    }
-    return;
-  }
+  if (!state.timer || stopping) return;
+  const now = Date.now();
+  const ms = elapsedMs(state.timer, now);
+  const release = beginStopping(now);
   try {
+    if (ms < 60000) {
+      const ok = await confirmDialog({
+        title: "Discard this session?",
+        message: "Sessions shorter than one minute aren't saved.",
+        confirmLabel: "Discard",
+      });
+      if (ok) {
+        discardTimer();
+        focusApi?.close();
+      }
+      return;
+    }
     const subject = getSubject(state.timer.subjectId);
-    const result = await withBusy(button, () => stopTimer());
+    const result = await withBusy(button, () => stopTimer({ now }));
     focusApi?.close();
     if (result.saved) toastSuccess(`${formatDuration(result.minutes)} of ${subject.name} saved`);
   } catch (error) {
     // Timer stays persisted, so nothing is lost; the user can retry.
     toastError(error, { description: "Your timer is still running — try stopping again." });
+  } finally {
+    release();
   }
 }
 
 async function handleDiscard() {
-  const ok = await confirmDialog({
-    title: "Discard timer?",
-    message: `${formatClock(elapsedMs())} of tracked time will be thrown away. This can't be undone.`,
-    confirmLabel: "Discard time",
-  });
-  if (ok) {
-    discardTimer();
-    focusApi?.close();
-    toast("Timer discarded");
+  if (!state.timer || stopping) return;
+  const release = beginStopping();
+  try {
+    const ok = await confirmDialog({
+      title: "Discard timer?",
+      message: `${formatClock(stopping.frozenMs)} of tracked time will be thrown away. This can't be undone.`,
+      confirmLabel: "Discard time",
+    });
+    if (ok) {
+      discardTimer();
+      focusApi?.close();
+      toast("Timer discarded");
+    }
+  } finally {
+    release();
   }
 }
 
 function togglePause() {
+  if (stopping) return;
   if (isRunning()) pauseTimer();
   else resumeTimer();
 }
@@ -227,29 +273,39 @@ function renderMini() {
     host.dataset.signature = signature;
     host.innerHTML = markup;
   });
+  lockControls();
   document.body.classList.toggle("has-timer", Boolean(state.timer));
   document.body.classList.toggle("timer-running", isRunning());
   updateTitle();
 }
 
+const displayMs = () => (stopping ? stopping.frozenMs : elapsedMs());
+
 function updateTitle() {
   const base = "Learning Time Tracker";
   if (state.timer) {
     const subject = getSubject(state.timer.subjectId);
-    document.title = `${isRunning() ? "●" : "❚❚"} ${formatClock(elapsedMs())} · ${subject.name}`;
+    document.title = `${isRunning() && !stopping ? "●" : "❚❚"} ${formatClock(displayMs())} · ${subject.name}`;
   } else document.title = base;
 }
 
 function tick() {
   if (!state.timer) return;
-  const text = formatClock(elapsedMs());
+  const text = formatClock(displayMs());
   document.querySelectorAll("[data-timer-clock]").forEach((el) => {
     if (el.textContent !== text) el.textContent = text;
   });
   updateTitle();
 }
 
+/** Safe to call on every sign-in: global listeners are bound only once. */
 export function initTimerUI() {
+  clearInterval(tickHandle);
+  tickHandle = setInterval(tick, 1000);
+  renderMini();
+  if (uiBound) return;
+  uiBound = true;
+
   document.addEventListener("click", (event) => {
     const btn = event.target.closest("[data-timer]");
     if (!btn) return;
@@ -267,10 +323,6 @@ export function initTimerUI() {
       if (keys.has("timer")) refreshFocus();
     }
   });
-
-  clearInterval(tickHandle);
-  tickHandle = setInterval(tick, 1000);
-  renderMini();
 }
 
 export const toggleTimer = togglePause;

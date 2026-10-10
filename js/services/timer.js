@@ -68,18 +68,21 @@ export function updateTimerDetails(patch) {
   persist({ ...state.timer, ...patch });
 }
 
-/** Saves the session to the store and clears the timer. Returns { saved, minutes }. */
-export async function stopTimer() {
+/**
+ * Saves the session to the store and clears the timer. Returns { saved, minutes }.
+ * `now` pins the end time, so the saved duration matches the moment Stop was pressed.
+ */
+export async function stopTimer({ now = Date.now() } = {}) {
   const t = state.timer;
   if (!t) return { saved: false, minutes: 0 };
-  const snapshot = { ...t, elapsedMs: elapsedMs(t) };
+  const snapshot = { ...t, elapsedMs: elapsedMs(t, now) };
   const minutes = Math.round(snapshot.elapsedMs / 60000);
   if (minutes < 1) {
     persist(null);
     return { saved: false, minutes: 0 };
   }
   // Keep the timer until the write is accepted, so a failure never loses time.
-  await saveTimerSession(snapshot);
+  await saveTimerSession(snapshot, now);
   persist(null);
   return { saved: true, minutes };
 }

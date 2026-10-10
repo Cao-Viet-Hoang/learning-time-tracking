@@ -35,7 +35,10 @@ export function toast(message, { tone = "info", duration = 4200, action = null, 
     <button type="button" class="toast__close" aria-label="Dismiss notification">${icon("x", { size: 14 })}</button>`;
 
   let timer;
+  let closed = false;
   const close = () => {
+    if (closed) return;
+    closed = true;
     clearTimeout(timer);
     el.classList.add("is-leaving");
     el.addEventListener("animationend", () => el.remove(), { once: true });
@@ -48,6 +51,8 @@ export function toast(message, { tone = "info", duration = 4200, action = null, 
 
   el.querySelector(".toast__close").addEventListener("click", close);
   el.querySelector(".toast__action")?.addEventListener("click", () => {
+    // The toast stays clickable while it animates out; the action must only run once.
+    if (closed) return;
     close();
     action.onClick();
   });
@@ -59,6 +64,11 @@ export function toast(message, { tone = "info", duration = 4200, action = null, 
   while (host.children.length > 4) host.firstElementChild.remove();
   arm();
   return close;
+}
+
+/** Drops every toast, e.g. on sign-out so an "Undo" can't act on the next user's data. */
+export function clearToasts() {
+  region?.replaceChildren();
 }
 
 export const toastSuccess = (message, options) => toast(message, { tone: "success", ...options });

@@ -97,6 +97,16 @@ export async function deletePlannedSession(id) {
   await db().remove(COLLECTION, id);
 }
 
+/**
+ * Re-creates a just-deleted plan (undo) under its original id, so its status
+ * and the sessions linked to it via plannedSessionId come back intact.
+ */
+export async function restorePlannedSession(plan) {
+  const store = db();
+  const { id, createdAt, updatedAt, ...data } = plan;
+  await store.set(COLLECTION, id, { ...data, userId: currentUserId(), createdAt: store.stamp(), updatedAt: store.stamp() });
+}
+
 /** Copies a plan to another date (default: the next day), keeping its time block. */
 export async function duplicatePlannedSession(id, targetDate) {
   const source = state.data.plannedSessions.find((p) => p.id === id);
@@ -114,7 +124,10 @@ export async function copyDayPlans(fromDate, toDate) {
   const activeSubjectIds = new Set(state.data.subjects.filter((s) => !s.archived).map((s) => s.id));
   const sources = state.data.plannedSessions.filter((p) => p.date === fromDate && activeSubjectIds.has(p.subjectId));
   if (!sources.length) throw new ValidationError("There is nothing to copy from that day.");
-  const ops = sources.map((p) => ({
+  // Copying twice (or onto a day that is already planned) must not stack duplicate blocks.
+  const fresh = sources.filter((p) => !findConflicts({ date: toDate, startTime: p.startTime, endTime: p.endTime }).length);
+  if (!fresh.length) throw new ValidationError("Those blocks are already on this day.");
+  const ops = fresh.map((p) => ({
     type: "set",
     collection: COLLECTION,
     id: store.newId(COLLECTION),

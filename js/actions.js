@@ -19,6 +19,8 @@ function contextDate(el) {
   return el.closest("[data-context-date]")?.dataset.contextDate || todayKey();
 }
 
+let copying = false;
+
 const ACTIONS = {
   "plan-session": (el) => openPlanForm({ date: el.dataset.date || contextDate(el), startTime: el.dataset.start || "" }),
   "log-session": (el) => {
@@ -31,12 +33,17 @@ const ACTIONS = {
   "go-subjects": () => navigate("/subjects"),
   "go-settings": () => navigate("/settings"),
   "copy-yesterday": async (el) => {
+    // The planner re-renders as the copied blocks arrive, so guard by flag rather than the button.
+    if (copying) return;
+    copying = true;
     const date = contextDate(el);
     try {
       const count = await copyDayPlans(addDays(date, -1), date);
       toastSuccess(`Copied ${pluralize(count, "block")} from the previous day`);
     } catch (error) {
       toastError(error);
+    } finally {
+      copying = false;
     }
   },
 };

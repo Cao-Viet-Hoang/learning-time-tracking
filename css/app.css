@@ -1195,3 +1195,9 @@ body {
     border-right: 0;
   }
 }
+
+/* While a stop is being saved the timer looks (and is) frozen. */
+.timer-stopping .mini-timer__pulse,
+.timer-stopping .focus__dot {
+  animation: none;
+}

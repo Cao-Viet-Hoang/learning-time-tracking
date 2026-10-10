@@ -92,18 +92,28 @@ export function showFieldErrors(form, errors = {}) {
   if (firstKey) form.elements[firstKey].focus?.();
 }
 
-/** Toggles a loading state on a button while an async task runs. */
-export async function withBusy(button, task) {
+/**
+ * Toggles a loading state on a button while an async task runs.
+ * keepOnSuccess leaves the button locked after success, for callers that are
+ * about to close or replace it (re-enabling it would invite a second submit).
+ */
+export async function withBusy(button, task, { keepOnSuccess = false } = {}) {
   if (!button) return task();
+  const reset = () => {
+    button.disabled = false;
+    button.classList.remove("is-loading");
+    button.removeAttribute("aria-busy");
+  };
   button.disabled = true;
   button.classList.add("is-loading");
   button.setAttribute("aria-busy", "true");
   try {
-    return await task();
-  } finally {
-    button.disabled = false;
-    button.classList.remove("is-loading");
-    button.removeAttribute("aria-busy");
+    const result = await task();
+    if (!keepOnSuccess) reset();
+    return result;
+  } catch (error) {
+    reset();
+    throw error;
   }
 }
 
