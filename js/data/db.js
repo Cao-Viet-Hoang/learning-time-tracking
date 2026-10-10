@@ -39,7 +39,7 @@ export const backendKind = () => backend?.kind ?? null;
 export async function connect({ mode, apiKey, user }) {
   await disconnect();
   const onBackgroundError = (error) => errorHandler(describeError(error));
-  backend = mode === "local" ? createLocalBackend({ userId: user.id }) : await createFirestoreBackend({ apiKey, onBackgroundError });
+  backend = mode === "local" ? createLocalBackend({ userId: user.id }) : await createFirestoreBackend({ apiKey, userId: user.id, onBackgroundError });
   userId = user.id;
   startListeners();
   return backend;
@@ -50,7 +50,6 @@ function startListeners() {
   unsubscribers = COLLECTIONS.map((name) =>
     backend.subscribe(
       name,
-      userId,
       (docs, info) => {
         const first = !(name in meta);
         meta[name] = info;

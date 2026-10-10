@@ -4,7 +4,7 @@
  * Setting a goal to 0 / empty removes it.
  */
 
-import { db, currentUserId } from "../data/db.js";
+import { db } from "../data/db.js";
 import { state } from "../state.js";
 import { assertValid } from "../utils/errors.js";
 
@@ -13,8 +13,8 @@ export const GOAL_TYPES = ["daily", "monthly", "yearly"];
 
 const LIMITS = { daily: 24 * 60, monthly: 31 * 24 * 60, yearly: 366 * 24 * 60 };
 
-/** Deterministic id keeps goals unique per user/type/subject without queries. */
-const goalId = (userId, type, subjectId) => `${userId}__${type}__${subjectId || "all"}`;
+/** Deterministic id keeps goals unique per type/subject without queries. */
+const goalId = (type, subjectId) => `${type}__${subjectId || "all"}`;
 
 export function findGoal(type, subjectId = null) {
   return state.data.goals.find((g) => g.type === type && (g.subjectId || null) === (subjectId || null)) || null;
@@ -29,9 +29,8 @@ export async function saveGoal({ type, subjectId = null, targetMinutes }) {
   });
 
   const store = db();
-  const userId = currentUserId();
   const existing = findGoal(type, subjectId);
-  const id = existing?.id || goalId(userId, type, subjectId);
+  const id = existing?.id || goalId(type, subjectId);
 
   if (minutes === 0) {
     if (existing) await store.remove(COLLECTION, id);
@@ -41,7 +40,6 @@ export async function saveGoal({ type, subjectId = null, targetMinutes }) {
     COLLECTION,
     id,
     {
-      userId,
       type,
       subjectId: subjectId || null,
       targetMinutes: minutes,
@@ -55,14 +53,13 @@ export async function saveGoal({ type, subjectId = null, targetMinutes }) {
 /** Saves several goals in one batch: [{ type, subjectId, targetMinutes }]. */
 export async function saveGoals(entries) {
   const store = db();
-  const userId = currentUserId();
   const ops = [];
   for (const entry of entries) {
     const minutes = Math.round(Number(entry.targetMinutes) || 0);
     const limit = LIMITS[entry.type];
     assertValid({ [entry.field || "targetMinutes"]: minutes < 0 || minutes > limit ? "Enter a realistic amount of time." : "" });
     const existing = findGoal(entry.type, entry.subjectId);
-    const id = existing?.id || goalId(userId, entry.type, entry.subjectId);
+    const id = existing?.id || goalId(entry.type, entry.subjectId);
     if (minutes === 0) {
       if (existing) ops.push({ type: "delete", collection: COLLECTION, id });
     } else if (!existing || existing.targetMinutes !== minutes) {
@@ -72,7 +69,6 @@ export async function saveGoals(entries) {
         id,
         merge: true,
         data: {
-          userId,
           type: entry.type,
           subjectId: entry.subjectId || null,
           targetMinutes: minutes,

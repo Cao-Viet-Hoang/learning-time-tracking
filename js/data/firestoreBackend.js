@@ -3,8 +3,11 @@
  * The Firebase SDK is loaded lazily from the official CDN as ES modules so the
  * app stays a plain static site without a build step.
  *
- * Every document carries `userId`; all reads are scoped with
- * `where("userId", "==", userId)` so users never see each other's data.
+ * Every collection (other than `users` itself) lives nested under the signed-in
+ * user: `users/{userId}/subjects/{id}`, `users/{userId}/goals/{id}`, etc. The
+ * userId is bound once at backend creation, so callers just pass bare
+ * collection names ("subjects", "goals", ...) and this module resolves the
+ * actual path.
  */
 
 import { firebaseConfig, firebaseSdkVersion } from "../../firebase-config.js";
@@ -44,7 +47,7 @@ function settle(promise, ms = 3000) {
   return Promise.race([promise.then(() => ({ queued: false })), queued]).finally(() => clearTimeout(timer));
 }
 
-export async function createFirestoreBackend({ apiKey, onBackgroundError }) {
+export async function createFirestoreBackend({ apiKey, userId, onBackgroundError }) {
   const sdk = await loadSdk();
   const appName = `ltt-${apiKey.slice(-6)}`;
   const existing = sdk.getApps().find((a) => a.name === appName);
@@ -66,18 +69,22 @@ export async function createFirestoreBackend({ apiKey, onBackgroundError }) {
     return settle(promise);
   };
 
+  // `users` itself stays a flat top-level collection (the profile doc is the
+  // parent of everything else); every other collection nests under it.
+  const colRef = (name) => (name === "users" ? sdk.collection(db, "users") : sdk.collection(db, "users", userId, name));
+  const docRef = (name, id) => (name === "users" ? sdk.doc(db, "users", id) : sdk.doc(db, "users", userId, name, id));
+
   return {
     kind: "firestore",
     stamp: () => sdk.serverTimestamp(),
 
     newId(collectionName) {
-      return sdk.doc(sdk.collection(db, collectionName)).id;
+      return sdk.doc(colRef(collectionName)).id;
     },
 
-    subscribe(collectionName, userId, onData, onError) {
-      const q = sdk.query(sdk.collection(db, collectionName), sdk.where("userId", "==", userId));
+    subscribe(collectionName, onData, onError) {
       return sdk.onSnapshot(
-        q,
+        colRef(collectionName),
         { includeMetadataChanges: true },
         (snapshot) =>
           onData(snapshot.docs.map(normalizeDoc), {
@@ -91,15 +98,15 @@ export async function createFirestoreBackend({ apiKey, onBackgroundError }) {
     },
 
     set(collectionName, id, data, { merge = false } = {}) {
-      return track(sdk.setDoc(sdk.doc(db, collectionName, id), data, { merge }));
+      return track(sdk.setDoc(docRef(collectionName, id), data, { merge }));
     },
 
     update(collectionName, id, patch) {
-      return track(sdk.updateDoc(sdk.doc(db, collectionName, id), patch));
+      return track(sdk.updateDoc(docRef(collectionName, id), patch));
     },
 
     remove(collectionName, id) {
-      return track(sdk.deleteDoc(sdk.doc(db, collectionName, id)));
+      return track(sdk.deleteDoc(docRef(collectionName, id)));
     },
 
     /** ops: [{ type: "set" | "delete", collection, id, data }] — chunked to Firestore's 500-op limit. */
@@ -108,7 +115,7 @@ export async function createFirestoreBackend({ apiKey, onBackgroundError }) {
       for (let i = 0; i < ops.length; i += 450) {
         const batch = sdk.writeBatch(db);
         for (const op of ops.slice(i, i + 450)) {
-          const ref = sdk.doc(db, op.collection, op.id);
+          const ref = docRef(op.collection, op.id);
           if (op.type === "delete") batch.delete(ref);
           else batch.set(ref, op.data, { merge: Boolean(op.merge) });
         }

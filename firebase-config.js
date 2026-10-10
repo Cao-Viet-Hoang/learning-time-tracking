@@ -13,7 +13,7 @@ export const firebaseConfig = {
   projectId: "food-management-cf52b",
   storageBucket: "food-management-cf52b.firebasestorage.app",
   messagingSenderId: "331392814353",
-  appId: "1:331392814353:web:40e755e44ecb8128a5d0b0",
+  appId: "1:331392814353:web:60e40c8ea6a9cd9ea5d0b0",
 };
 
 /**

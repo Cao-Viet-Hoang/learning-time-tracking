@@ -8,7 +8,7 @@ import { ValidationError } from "../../js/utils/errors.js";
 beforeEach(signInFresh);
 after(signOutTest);
 
-test("createSubject stores a cleaned, user-scoped document", async () => {
+test("createSubject stores a cleaned document", async () => {
   const id = await createSubject({ name: "  Embedded C  ", description: " pointers ", icon: "💻", color: "green" });
   await flush();
   const subject = state.data.subjects.find((s) => s.id === id);
@@ -16,7 +16,7 @@ test("createSubject stores a cleaned, user-scoped document", async () => {
   assert.equal(subject.description, "pointers");
   assert.equal(subject.color, "green");
   assert.equal(subject.archived, false);
-  assert.equal(subject.userId, state.user.id);
+  assert.equal("userId" in subject, false, "documents are scoped by path (users/{id}/subjects), not a field");
   assert.equal(typeof subject.createdAt, "number");
 });
 

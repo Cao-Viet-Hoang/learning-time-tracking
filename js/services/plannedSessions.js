@@ -4,7 +4,7 @@
  * Display states (missed, partial, in progress…) are derived in domain/plans.js.
  */
 
-import { db, currentUserId } from "../data/db.js";
+import { db } from "../data/db.js";
 import { state } from "../state.js";
 import { ValidationError, assertValid } from "../utils/errors.js";
 import { isDateKey, isTimeString, timeToMinutes, addDays } from "../utils/time.js";
@@ -73,7 +73,6 @@ export async function createPlannedSession(input, options) {
   const id = store.newId(COLLECTION);
   await store.set(COLLECTION, id, {
     ...clean,
-    userId: currentUserId(),
     status: "planned",
     createdAt: store.stamp(),
     updatedAt: store.stamp(),
@@ -104,7 +103,7 @@ export async function deletePlannedSession(id) {
 export async function restorePlannedSession(plan) {
   const store = db();
   const { id, createdAt, updatedAt, ...data } = plan;
-  await store.set(COLLECTION, id, { ...data, userId: currentUserId(), createdAt: store.stamp(), updatedAt: store.stamp() });
+  await store.set(COLLECTION, id, { ...data, createdAt: store.stamp(), updatedAt: store.stamp() });
 }
 
 /** Copies a plan to another date (default: the next day), keeping its time block. */
@@ -120,7 +119,6 @@ export async function duplicatePlannedSession(id, targetDate) {
 /** Copies every plan of one day to another day. */
 export async function copyDayPlans(fromDate, toDate) {
   const store = db();
-  const userId = currentUserId();
   const activeSubjectIds = new Set(state.data.subjects.filter((s) => !s.archived).map((s) => s.id));
   const sources = state.data.plannedSessions.filter((p) => p.date === fromDate && activeSubjectIds.has(p.subjectId));
   if (!sources.length) throw new ValidationError("There is nothing to copy from that day.");
@@ -132,7 +130,6 @@ export async function copyDayPlans(fromDate, toDate) {
     collection: COLLECTION,
     id: store.newId(COLLECTION),
     data: {
-      userId,
       date: toDate,
       startTime: p.startTime,
       endTime: p.endTime,

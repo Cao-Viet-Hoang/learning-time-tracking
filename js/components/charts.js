@@ -22,7 +22,7 @@ export function distributionBar(rows, { maxSegments = 6 } = {}) {
       ${segments.map(
         (s) =>
           html`<span class="dist__seg" style="flex-grow:${Math.max(s.share, 0.004)};--seg:${s.color}"
-            data-tip-html="${esc(`<strong>${esc(s.name)}</strong><span class="tip-row"><span>${formatDuration(s.minutes)}</span><b>${Math.round(s.share * 100)}%</b></span>`)}"></span>`
+            data-tip-html="${raw(esc(`<strong>${esc(s.name)}</strong><span class="tip-row"><span>${formatDuration(s.minutes)}</span><b>${Math.round(s.share * 100)}%</b></span>`))}"></span>`
       )}
     </div>
     <ol class="dist__list">
@@ -50,7 +50,7 @@ export function columnChart(items, { height = 120, reference = 0, referenceLabel
     <div class="cols__plot">
       ${refPct != null ? html`<div class="cols__ref" style="bottom:${refPct}%"><span>${referenceLabel || format(reference)}</span></div>` : ""}
       ${items.map(
-        (item) => html`<div class="cols__col ${item.highlight ? "is-highlight" : ""}" data-tip-html="${esc(item.tip || `<strong>${esc(item.label)}</strong> ${format(item.value)}`)}">
+        (item) => html`<div class="cols__col ${item.highlight ? "is-highlight" : ""}" data-tip-html="${raw(esc(item.tip || `<strong>${esc(item.label)}</strong> ${format(item.value)}`))}">
           <span class="cols__bar ${item.value ? "" : "is-zero"}" style="height:${(item.value / max) * 100}%"></span>
         </div>`
       )}
@@ -69,7 +69,7 @@ export function hourStrip(hours, peak) {
       ${hours.map(
         (m, h) =>
           html`<span class="hours__bar ${peak && h >= peak.start && h < peak.end ? "is-peak" : ""}" style="height:${Math.max(m ? 6 : 2, (m / max) * 100)}%"
-            data-tip-html="${esc(`<strong>${pad2(h)}:00 – ${pad2((h + 1) % 24)}:00</strong> ${formatDuration(m)}`)}"></span>`
+            data-tip-html="${raw(esc(`<strong>${pad2(h)}:00 – ${pad2((h + 1) % 24)}:00</strong> ${formatDuration(m)}`))}"></span>`
       )}
     </div>
     <div class="hours__axis" aria-hidden="true">${[0, 6, 12, 18, 24].map((h) => html`<span>${pad2(h % 24)}${h === 24 ? "" : ""}</span>`)}</div>

@@ -10,10 +10,3 @@ export function applyTheme(theme = getPrefs().theme) {
   const dark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#0e0e0d" : "#f6f6f4");
 }
-
-export function cycleTheme() {
-  const order = ["system", "light", "dark"];
-  const next = order[(order.indexOf(getPrefs().theme) + 1) % order.length];
-  applyTheme(next);
-  return next;
-}
