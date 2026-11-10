@@ -1,7 +1,7 @@
 /* Settings: account, goals, appearance, data (export / demo / reset). */
 
 import { state } from "../state.js";
-import { html, raw, render, withBusy } from "../utils/dom.js";
+import { html, raw, patch, withBusy } from "../utils/dom.js";
 import { icon } from "../components/icons.js";
 import { segmented, badge } from "../components/ui.js";
 import { confirmDialog } from "../components/modal.js";
@@ -63,7 +63,7 @@ export function mount(el) {
     const counts = Object.fromEntries(Object.entries(state.data).map(([k, v]) => [k, v.length]));
     const theme = getPrefs().theme;
 
-    render(
+    patch(
       root,
       html`<header class="view-head"><div><p class="eyebrow">Settings</p><h1 class="view-title">Workspace</h1></div></header>
 

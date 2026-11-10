@@ -4,7 +4,7 @@
  */
 
 import { state } from "../state.js";
-import { html, raw, render } from "../utils/dom.js";
+import { html, raw, patch } from "../utils/dom.js";
 import { icon } from "../components/icons.js";
 import { badge, emptyState } from "../components/ui.js";
 import { openMenu } from "../components/dropdown.js";
@@ -147,14 +147,14 @@ export function mount(el) {
   let showArchived = readJSON("subjects:showArchived", false);
 
   const draw = () => {
-    if (!dataReady()) return render(root, loadingView("Loading subjects"));
+    if (!dataReady()) return patch(root, loadingView("Loading subjects"));
     const active = activeSubjects();
     const archived = archivedSubjects();
     const totals = totalsBySubject();
     const ranked = [...active].sort((a, b) => (totals.get(b.id) || 0) - (totals.get(a.id) || 0));
     const maxTotal = Math.max(0, ...[...totals.values()]);
 
-    render(
+    patch(
       root,
       html`<header class="view-head">
           <div>

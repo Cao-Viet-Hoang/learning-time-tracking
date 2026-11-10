@@ -4,7 +4,7 @@
  */
 
 import { state } from "../state.js";
-import { html, raw, render } from "../utils/dom.js";
+import { html, raw, patch } from "../utils/dom.js";
 import { icon } from "../components/icons.js";
 import { segmented, emptyState, subjectChip, badge } from "../components/ui.js";
 import { progressRing } from "../components/progress.js";
@@ -227,9 +227,9 @@ export function mount(el, params) {
   const root = el.firstElementChild;
 
   const draw = () => {
-    if (!dataReady()) return render(root, loadingView("Loading insights"));
+    if (!dataReady()) return patch(root, loadingView("Loading insights"));
     if (!state.data.learningSessions.length) {
-      return render(
+      return patch(
         root,
         html`<header class="view-head"><div><p class="eyebrow">Insights</p><h1 class="view-title">Your learning, measured</h1></div></header>
           ${emptyState({
@@ -242,7 +242,7 @@ export function mount(el, params) {
           })}`
       );
     }
-    render(
+    patch(
       root,
       html`<header class="view-head">
           <div><p class="eyebrow">Insights</p><h1 class="view-title">Your learning, measured</h1></div>

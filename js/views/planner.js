@@ -5,7 +5,7 @@
  */
 
 import { state } from "../state.js";
-import { html, raw, render, esc } from "../utils/dom.js";
+import { html, raw, patch, esc } from "../utils/dom.js";
 import { icon } from "../components/icons.js";
 import { segmented, badge, subjectChip } from "../components/ui.js";
 import { dayTimeline, bindTimelineActions, planMenuItems } from "../components/timeline.js";
@@ -237,9 +237,9 @@ export function mount(el, params) {
   bindTimelineActions(root);
 
   const draw = () => {
-    if (!dataReady()) return render(root, loadingView("Loading planner"));
+    if (!dataReady()) return patch(root, loadingView("Loading planner"));
     const isPast = date < todayKey();
-    render(
+    patch(
       root,
       html`<header class="view-head">
           <div>

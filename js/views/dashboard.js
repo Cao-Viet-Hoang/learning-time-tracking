@@ -4,7 +4,7 @@
  */
 
 import { state } from "../state.js";
-import { html, raw, render } from "../utils/dom.js";
+import { html, raw, patch } from "../utils/dom.js";
 import { icon } from "../components/icons.js";
 import { progressBar } from "../components/progress.js";
 import { badge, emptyState, subjectChip } from "../components/ui.js";
@@ -180,11 +180,11 @@ export function mount(el) {
   bindTimelineActions(root);
 
   const stop = reactive(() => {
-    if (!dataReady()) return render(root, loadingView("Loading today"));
+    if (!dataReady()) return patch(root, loadingView("Loading today"));
     const today = todayKey();
-    if (!state.data.subjects.length) return render(root, onboarding());
+    if (!state.data.subjects.length) return patch(root, onboarding());
 
-    render(
+    patch(
       root,
       html`${heroSection(today)}
         <div class="dash-grid">

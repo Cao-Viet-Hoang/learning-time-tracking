@@ -47,6 +47,106 @@ export function render(el, template) {
   el.innerHTML = String(template ?? "");
 }
 
+/* ---------- In-place patching (no flicker) ---------- */
+
+const KEY_ATTRS = ["id", "data-plan-id", "data-session-id", "data-subject-id", "data-date"];
+
+function keyOf(node) {
+  if (node.nodeType !== 1) return null;
+  for (const name of KEY_ATTRS) {
+    const value = node.getAttribute(name);
+    if (value) return `${node.nodeName}|${name}=${value}`;
+  }
+  return null;
+}
+
+const sameKind = (a, b) => a.nodeType === b.nodeType && a.nodeName === b.nodeName;
+
+function syncAttributes(from, to) {
+  for (const { name } of [...from.attributes]) {
+    if (!to.hasAttribute(name)) from.removeAttribute(name);
+  }
+  for (const { name, value } of [...to.attributes]) {
+    if (from.getAttribute(name) !== value) from.setAttribute(name, value);
+  }
+}
+
+function syncFormState(from, to) {
+  if (from === document.activeElement) return; // never overwrite what the user is typing
+  const tag = from.nodeName;
+  if (tag === "INPUT") {
+    if (from.type === "checkbox" || from.type === "radio") from.checked = to.hasAttribute("checked");
+    else if (from.value !== (to.getAttribute("value") ?? "")) from.value = to.getAttribute("value") ?? "";
+  } else if (tag === "TEXTAREA") {
+    if (from.value !== to.value) from.value = to.value;
+  } else if (tag === "OPTION") {
+    from.selected = to.hasAttribute("selected");
+  }
+}
+
+function morphNode(from, to) {
+  if (from.nodeType !== 1) {
+    if (from.nodeValue !== to.nodeValue) from.nodeValue = to.nodeValue;
+    return;
+  }
+  syncAttributes(from, to);
+  syncFormState(from, to);
+  // The live timer clock is owned by the ticker; leave its text alone.
+  if (from.hasAttribute("data-timer-clock")) return;
+  morphChildren(from, to);
+}
+
+function morphChildren(from, to) {
+  const oldKids = [...from.childNodes];
+  const keyed = new Map();
+  for (const kid of oldKids) {
+    const key = keyOf(kid);
+    if (key && !keyed.has(key)) keyed.set(key, kid);
+  }
+  const used = new Set();
+  let ref = from.firstChild;
+
+  for (const next of [...to.childNodes]) {
+    const key = keyOf(next);
+    let match = null;
+    if (key) {
+      match = keyed.get(key);
+      if (match && used.has(match)) match = null;
+    } else {
+      while (ref && used.has(ref)) ref = ref.nextSibling;
+      for (let cand = ref; cand; cand = cand.nextSibling) {
+        if (!used.has(cand) && !keyOf(cand) && sameKind(cand, next)) {
+          match = cand;
+          break;
+        }
+      }
+    }
+    if (match) {
+      used.add(match);
+      if (match === ref) ref = ref.nextSibling;
+      else from.insertBefore(match, ref);
+      morphNode(match, next);
+    } else {
+      from.insertBefore(next, ref);
+      used.add(next);
+    }
+  }
+  for (const kid of oldKids) if (!used.has(kid)) kid.remove();
+}
+
+/**
+ * Like `render`, but diffs the new markup against the existing DOM and only
+ * touches what changed. Unchanged elements stay in place, so there is no
+ * flicker, CSS animations don't replay, progress bars transition smoothly,
+ * and focus/scroll/hover survive live updates.
+ */
+export function patch(el, template) {
+  if (!el) return;
+  const tpl = document.createElement("template");
+  tpl.innerHTML = String(template ?? "");
+  morphChildren(el, tpl.content);
+}
+
 /** Builds a single element from an HTML template. */
 export function fragment(template) {
   const tpl = document.createElement("template");

@@ -4,7 +4,7 @@
  */
 
 import { state } from "../state.js";
-import { html, raw, render } from "../utils/dom.js";
+import { html, raw, patch } from "../utils/dom.js";
 import { icon } from "../components/icons.js";
 import { badge, subjectChip, emptyState, segmented } from "../components/ui.js";
 import { confirmDialog } from "../components/modal.js";
@@ -196,18 +196,18 @@ export function mount(el, params) {
 
   const drawToolbar = () => {
     const subjects = [...state.data.subjects].sort((a, b) => Number(a.archived) - Number(b.archived) || a.name.localeCompare(b.name));
-    render(toolbarEl, toolbar(filters, subjects));
+    patch(toolbarEl, toolbar(filters, subjects));
   };
 
   const drawResults = () => {
     if (!dataReady()) {
-      render(resultsEl, loadingView("Loading history"));
+      patch(resultsEl, loadingView("Loading history"));
       return;
     }
     const all = state.data.learningSessions;
     const list = applyFilters(filters);
     const filtered = Boolean(filters.q || filters.subject || filters.range !== "all" || filters.source);
-    render(
+    patch(
       summaryEl,
       list.length
         ? html`<span><strong>${pluralize(list.length, "session")}</strong> · ${formatDuration(sumBy(list, (s) => s.durationMinutes))}</span>
@@ -215,7 +215,7 @@ export function mount(el, params) {
         : ""
     );
     if (!all.length) {
-      render(
+      patch(
         resultsEl,
         emptyState({
           title: "No learning logged yet.",
@@ -229,7 +229,7 @@ export function mount(el, params) {
       return;
     }
     if (!list.length) {
-      render(
+      patch(
         resultsEl,
         emptyState({
           title: "No sessions match these filters.",
@@ -241,7 +241,7 @@ export function mount(el, params) {
       );
       return;
     }
-    render(resultsEl, results(list, expandedId, limit));
+    patch(resultsEl, results(list, expandedId, limit));
   };
 
   const refresh = () => {
